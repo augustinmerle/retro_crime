@@ -1,0 +1,16 @@
+{
+  "name": "retro-crime-board",
+  "version": "1.0.0",
+  "description": "Retro sprint — Crime Investigation Board",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "ws": "^8.19.0"
+  }
+}
