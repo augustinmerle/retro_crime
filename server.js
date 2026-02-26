@@ -10,7 +10,7 @@ const wss = new WebSocketServer({ server });
 // État partagé du board
 let boardState = null;
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(__dirname));
 
 // WebSocket : broadcast en temps réel
 wss.on('connection', (ws) => {
