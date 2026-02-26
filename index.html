@@ -539,29 +539,7 @@
     <div class="section-title"><span class="section-icon">⚖️</span> Vote — Suspect Principal</div>
     <div class="section-desc">Chaque membre place ses 2 votes. Le(s) suspect(s) avec le plus de votes sont jugés coupables.</div>
     <div id="vote-area">
-      <div style="display:flex;flex-direction:column;gap:10px;">
-        <div style="display:flex;align-items:center;gap:12px;background:var(--aged);padding:10px 14px;border:1px solid #c4b090;">
-          <span style="flex:1;font-family:'Special Elite',cursive;color:var(--red);">Monsieur Dette Technique</span>
-          <div style="display:flex;gap:6px;" id="vote1">
-            <span onclick="addVote('vote1')" style="cursor:pointer;font-size:1.3rem;user-select:none;">🔴</span>
-          </div>
-          <button onclick="addVote('vote1')" style="background:var(--ink);color:var(--yellow);border:none;padding:4px 10px;cursor:pointer;font-size:0.7rem;font-family:'Oswald',sans-serif;letter-spacing:1px;">VOTER</button>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;background:var(--aged);padding:10px 14px;border:1px solid #c4b090;">
-          <span style="flex:1;font-family:'Special Elite',cursive;color:var(--red);">Madame Dépendance Externe</span>
-          <div style="display:flex;gap:6px;" id="vote2">
-            <span style="font-size:1.3rem;">🔴</span><span style="font-size:1.3rem;">🔴</span><span style="font-size:1.3rem;">🔴</span>
-          </div>
-          <button onclick="addVote('vote2')" style="background:var(--ink);color:var(--yellow);border:none;padding:4px 10px;cursor:pointer;font-size:0.7rem;font-family:'Oswald',sans-serif;letter-spacing:1px;">VOTER</button>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;background:var(--aged);padding:10px 14px;border:1px solid #c4b090;">
-          <span style="flex:1;font-family:'Special Elite',cursive;color:var(--red);">Inspecteur Scope Creep</span>
-          <div style="display:flex;gap:6px;" id="vote3">
-            <span style="font-size:1.3rem;">🔴</span>
-          </div>
-          <button onclick="addVote('vote3')" style="background:var(--ink);color:var(--yellow);border:none;padding:4px 10px;cursor:pointer;font-size:0.7rem;font-family:'Oswald',sans-serif;letter-spacing:1px;">VOTER</button>
-        </div>
-      </div>
+      <div id="vote-rows" style="display:flex;flex-direction:column;gap:10px;"></div>
     </div>
   </div>
 
@@ -643,6 +621,7 @@
     const data = {
       scene: getPostIts('scene-postits'),
       preuves: getPostIts('preuves-postits'),
+	  evidenceLinks: getEvidenceLinks(),
       suspects: getSuspects(),
       votes: getVotes(),
       actions: getActions(),
@@ -675,9 +654,20 @@
     return list;
   }
 
+  function getEvidenceLinks() {
+    const links = [];
+    document.querySelectorAll('.evidence-tag').forEach(tag => {
+      const parts = tag.textContent.split('→');
+      const label = parts[0].trim();
+      const suspect = tag.dataset.suspect || (parts[1] ? parts[1].trim() : null);
+      links.push({ label, suspect });
+    });
+    return links;
+  }
+
   function getVotes() {
     const map = {};
-    document.querySelectorAll('[id^="vote"]').forEach(el => {
+    document.querySelectorAll('#vote-rows [id^="vote"]').forEach(el => {
       map[el.id] = el.querySelectorAll('span').length;
     });
     return map;
@@ -697,17 +687,27 @@
     if (data.preuves) restorePostIts('preuves-postits', data.preuves, 'blue');
 
     if (data.suspects) {
-      // Clear default suspects
+      // Clear existing suspects
       document.getElementById('suspects').querySelectorAll('.suspect-card').forEach(el => el.remove());
-      document.getElementById('vote-area').querySelectorAll('[id^="vrow"]').forEach(el => el.remove());
-      // Remove default hard-coded vote rows (vote1, vote2, vote3 rows)
-      document.getElementById('vote-area').querySelector('div').innerHTML = '';
+      // Clear existing vote rows
+      const voteRows = document.getElementById('vote-rows');
+      if (voteRows) voteRows.innerHTML = '';
       suspectCount = 0;
       data.suspects.forEach(s => {
         suspectCount++;
         createSuspectCard(s.name, s.mobile, s.arrested, suspectCount);
       });
     }
+    if (data.evidenceLinks) {
+      const tags = document.querySelectorAll('.evidence-tag');
+      data.evidenceLinks.forEach((l, i) => {
+        if (!tags[i]) return;
+        const tag = tags[i];
+        tag.dataset.suspect = l.suspect || '';
+        tag.textContent = l.suspect ? `${l.label} → ${l.suspect}` : l.label;
+      });
+    }
+
 
     if (data.votes) {
       Object.entries(data.votes).forEach(([voteId, count]) => {
@@ -778,7 +778,55 @@
       <div style="display:flex;gap:6px;" id="${voteId}"></div>
       <button onclick="addVote('${voteId}')" style="background:var(--ink);color:var(--yellow);border:none;padding:4px 10px;cursor:pointer;font-size:0.7rem;font-family:'Oswald',sans-serif;letter-spacing:1px;">VOTER</button>
     `;
-    document.getElementById('vote-area').querySelector('div').appendChild(voteDiv);
+    const voteRows = document.getElementById('vote-rows') || document.getElementById('vote-area').querySelector('div');
+    voteRows.appendChild(voteDiv);
+  }
+
+  function createVoteRowForExistingSuspect(card, idx) {
+    const voteId = 'vote' + idx;
+    const name = card.querySelector('.suspect-name').textContent;
+    const voteDiv = document.createElement('div');
+    voteDiv.id = 'vrow' + idx;
+    voteDiv.style = 'display:flex;align-items:center;gap:12px;background:var(--aged);padding:10px 14px;border:1px solid #c4b090;margin-top:10px;';
+    voteDiv.innerHTML = `
+      <span class="suspect-vote-name" style="flex:1;font-family:'Special Elite',cursive;color:var(--red);">${name}</span>
+      <div style="display:flex;gap:6px;" id="${voteId}"></div>
+      <button onclick="addVote('${voteId}')" style="background:var(--ink);color:var(--yellow);border:none;padding:4px 10px;cursor:pointer;font-size:0.7rem;font-family:'Oswald',sans-serif;letter-spacing:1px;">VOTER</button>
+    `;
+    const voteRows = document.getElementById('vote-rows') || document.getElementById('vote-area').querySelector('div');
+    voteRows.appendChild(voteDiv);
+  }
+
+  function associateEvidence(tag) {
+    const suspects = Array.from(document.querySelectorAll('#suspects .suspect-name'));
+    if (!suspects.length) {
+      alert('Aucun suspect défini pour associer la preuve.');
+      return;
+    }
+    const list = suspects.map((el, i) => `${i + 1}. ${el.textContent.trim()}`).join('\n');
+    const input = prompt(
+      'Associer cette preuve à quel suspect ?\n' +
+      list +
+      '\n\nEntrez le numéro du suspect, ou laissez vide pour retirer l’association.'
+    );
+    if (input === null) return;
+    const trimmed = input.trim();
+    const baseLabel = tag.textContent.split('→')[0].trim();
+    if (!trimmed) {
+      tag.dataset.suspect = '';
+      tag.textContent = baseLabel;
+      saveAll();
+      return;
+    }
+    const idx = parseInt(trimmed, 10);
+    if (Number.isNaN(idx) || idx < 1 || idx > suspects.length) {
+      alert('Numéro de suspect invalide.');
+      return;
+    }
+    const name = suspects[idx - 1].textContent.trim();
+    tag.dataset.suspect = name;
+    tag.textContent = `${baseLabel} → ${name}`;
+    saveAll();
   }
 
   // ─── SAVE INDICATOR ─────────────────────────────────────────────────────────
@@ -897,6 +945,17 @@
     document.querySelectorAll('[contenteditable]').forEach(el => {
       el.addEventListener('input', debouncedSave);
     });
+    document.querySelectorAll('.evidence-tag').forEach(tag => {
+      tag.addEventListener('click', () => associateEvidence(tag));
+    });
+    // Crée les lignes de vote initiales à partir des suspects par défaut
+    const existingSuspects = document.querySelectorAll('#suspects .suspect-card');
+    if (existingSuspects.length) {
+      const voteRows = document.getElementById('vote-rows') || document.getElementById('vote-area').querySelector('div');
+      if (voteRows && !voteRows.children.length) {
+        existingSuspects.forEach((card, i) => createVoteRowForExistingSuspect(card, i + 1));
+      }
+    }
     connectWS();
   });
 </script>
